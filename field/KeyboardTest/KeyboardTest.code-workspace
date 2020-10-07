@@ -1,0 +1,44 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"name": "KeyboardTest",
+			"path": "../../../../../PlatformIO/Projects/KeyboardTest"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"array": "cpp",
+			"atomic": "cpp",
+			"*.tcc": "cpp",
+			"cmath": "cpp",
+			"unordered_map": "cpp",
+			"exception": "cpp",
+			"algorithm": "cpp",
+			"memory": "cpp",
+			"optional": "cpp",
+			"random": "cpp",
+			"string_view": "cpp",
+			"type_traits": "cpp",
+			"utility": "cpp",
+			"functional": "cpp",
+			"fstream": "cpp",
+			"iosfwd": "cpp",
+			"istream": "cpp",
+			"limits": "cpp",
+			"new": "cpp",
+			"ostream": "cpp",
+			"sstream": "cpp",
+			"streambuf": "cpp",
+			"system_error": "cpp",
+			"tuple": "cpp",
+			"typeinfo": "cpp",
+			"bit": "cpp",
+			"string": "cpp",
+			"memory_resource": "cpp",
+			"numeric": "cpp"
+		}
+	}
+}

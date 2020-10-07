@@ -2,7 +2,8 @@
 TARGET = ex_field_keyboard_test
 
 # Sources
-CPP_SOURCES = KeyboardTest.cpp
+CPP_SOURCES = KeyboardTest.cpp nuked_opn2.cpp
+C_SOURCES = nuked/ym3438.c
 
 # Library Locations
 LIBDAISY_DIR = ../../libdaisy
