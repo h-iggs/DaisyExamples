@@ -1,0 +1,22 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "request": "launch",
+            "type": "cortex-debug",
+            "name": "Debug J-Link",
+            "cwd": "${workspaceRoot}",
+            "executable": "./build/IOTests.elf",
+            "serverpath": "/Applications/SEGGER/JLink_V688b/JLinkGDBServerCLExe",
+            "servertype": "jlink",
+            "armToolchainPath": "/usr/local/bin/",
+            "device": "STM32H750XB",
+            "interface": "jtag",
+            "runToMain": true,
+            "svdFile": "./.vscode/STM32H750x.svd"
+        }
+    ]
+}
