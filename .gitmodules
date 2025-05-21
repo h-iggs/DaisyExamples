@@ -8,3 +8,6 @@
 [submodule "libDaisy"]
 	path = libDaisy
 	url = https://github.com/electro-smith/libDaisy
+[submodule "patch/Nuked-OPN2/externals/Nuked-OPN2"]
+	path = patch/Nuked-OPN2/externals/Nuked-OPN2
+	url = https://github.com/nukeykt/Nuked-OPN2.git
