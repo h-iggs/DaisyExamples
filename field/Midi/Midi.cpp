@@ -1,11 +1,40 @@
 #include "daisy_field.h"
 #include "daisysp.h"
 #include <string>
+#include "ym3438.h"
+
+#define YM_MASTER_CLOCK 7670454UL
 
 using namespace daisy;
 using namespace daisysp;
 
 DaisyField hw;
+MidiUsbHandler usb_midi;
+ym3438_t ym;           // declared globally or static
+
+static float samplerate_global = 0.0f;
+
+static void midi_note_to_fnum_block(int note, float sample_rate,
+                                    uint16_t &fnum, int &block)
+{
+    // 1) compute frequency in Hz
+    double freq = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+
+    // 2) find smallest block so that fnum < 2048
+    //    fnum = freq * (2^(20-block)) / sample_rate
+    for (block = 0; block < 8; ++block)
+    {
+        double calc = freq * std::ldexp(1.0, 20 - block) / sample_rate;
+        if (calc < 2048.0)
+        {
+            fnum = static_cast<uint16_t>(calc + 0.5);
+            return;
+        }
+    }
+    // clamp to max
+    block = 7;
+    fnum  = 2047;
+}
 
 class Voice
 {
@@ -27,6 +56,8 @@ class Voice
         filt_.SetFreq(6000.f);
         filt_.SetRes(0.6f);
         filt_.SetDrive(0.8f);
+
+        // OPN2_Reset(&ym);  // line removed as per instructions
     }
 
     float Process()
@@ -155,7 +186,6 @@ void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
                    AudioHandle::InterleavingOutputBuffer out,
                    size_t                                size)
 {
-    float sum = 0.f;
     hw.ProcessDigitalControls();
     hw.ProcessAnalogControls();
     if(hw.GetSwitch(hw.SW_1)->FallingEdge())
@@ -166,10 +196,19 @@ void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
 
     for(size_t i = 0; i < size; i += 2)
     {
-        sum        = 0.f;
-        sum        = voice_handler.Process() * 0.5f;
-        out[i]     = sum;
-        out[i + 1] = sum;
+        // Clock the YM3438 core at its internal rate (~master_clock/6) and decimate to audio rate
+        const int clocks_per_sample = static_cast<int>((YM_MASTER_CLOCK / 6.0) / samplerate_global + 0.5);
+        float acc = 0.0f;
+        for(int j = 0; j < clocks_per_sample; ++j)
+        {
+            Bit16s buf16;
+            OPN2_Clock(&ym, &buf16);
+            acc += buf16;
+        }
+        // average and normalize from signed-9 to ±1.0
+        float s = acc / (clocks_per_sample * 512.0f);
+        out[i]     = s;
+        out[i + 1] = s;
     }
 }
 
@@ -189,6 +228,25 @@ void HandleMidiMessage(MidiEvent m)
             else
             {
                 voice_handler.OnNoteOn(p.note, p.velocity);
+                uint16_t fnum;
+                int      block;
+                float samplerate = hw.AudioSampleRate();
+                midi_note_to_fnum_block(p.note, samplerate, fnum, block);
+
+                int ch = 0; // your channel 0–5
+
+                // write F-Number LSB (register A0–A5)
+                OPN2_Write(&ym, 0, 0xA0 | ch);
+                OPN2_Write(&ym, 1, fnum & 0xFF);
+
+                // write F-Number MSB + Block (register A4–A9)
+                OPN2_Write(&ym, 0, 0xA4 | ch);
+                OPN2_Write(&ym, 1, ((fnum >> 8) & 0x07) | (block << 3));
+
+                // key-on: register 28–2D, data = operator bits (usually 0xF0)
+                OPN2_Write(&ym, 0, 0x28 | ch);
+                OPN2_Write(&ym, 1, 0xF0);
+
             }
         }
         break;
@@ -206,28 +264,48 @@ void HandleMidiMessage(MidiEvent m)
 int main(void)
 {
     // Init
-    float samplerate;
     hw.Init();
-    samplerate = hw.AudioSampleRate();
-    voice_handler.Init(samplerate);
+
+    // Configure core for YM2612 mode
+    OPN2_SetChipType(ym3438_mode_ym2612);
+
+    // Initialize YM2612 core and load a basic patch
+    OPN2_Reset(&ym);
+
+    // Example minimal patch: disable LFO and PCM, simple algorithm for channel 0
+    // You can expand this with full operator settings from a YM2612 register dump
+    OPN2_Write(&ym, 0, 0x22);  // LFO off
+    OPN2_Write(&ym, 1, 0x00);
+    OPN2_Write(&ym, 0, 0x27);  // PCM off
+    OPN2_Write(&ym, 1, 0x00);
+    OPN2_Write(&ym, 0, 0xB0);  // CH0: ALGORITHM=0, FEEDBACK=0
+    OPN2_Write(&ym, 1, 0x00);
+
+    samplerate_global = hw.AudioSampleRate();
+    voice_handler.Init(samplerate_global);
 
     //display
-    const char str[] = "Midi";
+    const char str[] = "USB Midi";
     char *     cstr  = (char *)str;
     hw.display.WriteString(cstr, Font_7x10, true);
     hw.display.Update();
 
+    MidiUsbHandler::Config usb_midi_config;
+    usb_midi_config.transport_config.periph = MidiUsbTransport::Config::INTERNAL;
+    usb_midi.Init(usb_midi_config);
+    usb_midi.StartReceive();
+
     // Start stuff.
-    hw.midi.StartReceive();
+    // hw.midi.StartReceive();
     hw.StartAdc();
     hw.StartAudio(AudioCallback);
     for(;;)
     {
-        hw.midi.Listen();
+        usb_midi.Listen();
         // Handle MIDI Events
-        while(hw.midi.HasEvents())
+        while(usb_midi.HasEvents())
         {
-            HandleMidiMessage(hw.midi.PopEvent());
+            HandleMidiMessage(usb_midi.PopEvent());
         }
     }
 }

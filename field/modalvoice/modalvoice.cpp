@@ -1,5 +1,7 @@
 #include "daisy_field.h"
 #include "daisysp.h"
+// #include "dev/usb_midi.h"
+// #include "usb_midi.h"
 
 using namespace daisysp;
 using namespace daisy;
@@ -8,6 +10,7 @@ using namespace daisy;
 
 DaisyField hw;
 ModalVoice modal;
+MidiUsbHandler usb_midi;
 
 uint8_t buttons[16];
 // Use bottom row to set major scale
@@ -51,10 +54,71 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         kvals[i] = hw.GetKnobValue(i);
     }
 
-    modal.SetBrightness(kvals[0]);
-    modal.SetStructure(kvals[1]);
-    modal.SetDamping(kvals[2]);
-    modal.SetAccent(kvals[3]);
+    float brightness = kvals[0] + hw.GetCvValue(0);  // mix knob + CV
+    brightness = fminf(1.0f, brightness);                // clip to valid range
+    modal.SetBrightness(brightness);
+
+    float structure = kvals[1] + hw.GetCvValue(1);  // mix knob + CV
+    structure = fminf(1.0f, structure);                // clip to valid range
+    modal.SetStructure(structure);
+
+    float damping = kvals[2] + hw.GetCvValue(2);  // mix knob + CV
+    damping = fminf(1.0f, damping);                // clip to valid range
+    modal.SetDamping(damping);
+
+    float accent = kvals[3] + hw.GetCvValue(3);  // mix knob + CV
+    accent = fminf(1.0f, accent);                // clip to valid range
+    modal.SetAccent(accent);
+
+
+    // Handle USB MIDI input.
+    while(usb_midi.HasEvents())
+    {
+        MidiEvent event = usb_midi.PopEvent();
+        switch(event.type)
+        {
+            case NoteOn:
+                if(event.data[1] != 0)
+                {
+                    modal.Trig();
+                    float note = static_cast<float>(event.data[0]);
+                    modal.SetFreq(mtof(note));
+                    modal.SetAccent(static_cast<float>(event.data[1]) / 127.0f);
+                }
+                break;
+            case NoteOff:
+                // Handle note off event if needed
+                break;
+            case ControlChange:
+                if(event.data[0] == 1)
+                {
+                    modal.SetBrightness(static_cast<float>(event.data[1]) / 127.0f);
+                }
+                else if(event.data[0] == 2)
+                {
+                    modal.SetStructure(static_cast<float>(event.data[1]) / 127.0f);
+                }
+                else if(event.data[0] == 3)
+                {
+                    modal.SetDamping(static_cast<float>(event.data[1]) / 127.0f);
+                }
+                else if(event.data[0] == 4)
+                {
+                    float accent = static_cast<float>(event.data[1]) / 127.0f;
+                    modal.SetAccent(accent);
+                }
+                break;
+            default:
+                break;
+        }
+        if(event.type == NoteOn && event.data[1] != 0)
+        {
+            modal.Trig();
+            float note = static_cast<float>(event.data[0]);
+            modal.SetFreq(mtof(note));
+            modal.SetAccent(static_cast<float>(event.data[1]) / 127.0f);
+        }
+    }
 
     for(size_t i = 0; i < 16; i++)
     {
@@ -123,9 +187,20 @@ int main(void)
 
     modal.Init(sr);
 
+    // Initialize USB MIDI interface
+    MidiUsbHandler::Config usb_midi_config;
+    usb_midi_config.transport_config.periph = MidiUsbTransport::Config::INTERNAL;
+    usb_midi.Init(usb_midi_config);
+    usb_midi.StartReceive();
+
     hw.StartAdc();
     hw.StartAudio(AudioCallback);
 
+    // hw.display.Clear();
+    hw.display.Fill(false);
+    hw.display.SetCursor(0, 0);
+    hw.display.WriteString("Modal Voice", Font_7x10, true);
+    hw.display.Update();
     for(;;)
     {
         UpdateLeds(kvals);
