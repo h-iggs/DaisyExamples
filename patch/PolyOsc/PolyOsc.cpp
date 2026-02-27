@@ -5,6 +5,8 @@
 using namespace daisy;
 using namespace daisysp;
 
+MidiUsbHandler midi;
+
 DaisyPatch patch;
 
 Oscillator osc[3];
@@ -25,16 +27,20 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
     UpdateControls();
     for(size_t i = 0; i < size; i++)
     {
-        float mix = 0;
+        float mix = 0.0f;
         //Process and output the three oscillators
         for(size_t chn = 0; chn < 3; chn++)
         {
             float sig = osc[chn].Process();
-            mix += sig * .25f;
             out[chn][i] = sig;
         }
 
-        //output the mixed oscillators
+        // Mix input channel 1 into outputs 1 and 2.
+        out[0][i] = (out[0][i] + in[0][i]) * 0.5f;
+        out[1][i] = (out[1][i] + in[0][i]) * 0.5f;
+
+        // Output a summed monitor mix on channel 4.
+        mix = (out[0][i] + out[1][i]) * 0.5f;
         out[3][i] = mix;
     }
 }
@@ -75,9 +81,45 @@ int main(void)
 
     patch.StartAdc();
     patch.StartAudio(AudioCallback);
+
+    MidiUsbHandler::Config midi_cfg;
+    midi_cfg.transport_config.periph = MidiUsbTransport::Config::INTERNAL;
+    midi.Init(midi_cfg);
+
     while(1)
     {
         UpdateOled();
+        /** Listen to MIDI for new changes */
+        midi.Listen();
+
+        /** When there are messages waiting in the queue... */
+        while(midi.HasEvents())
+        {
+            /** Pull the oldest one from the list... */
+            auto msg = midi.PopEvent();
+            switch(msg.type)
+            {
+                case NoteOn:
+                {
+                    /** and change the frequency of the oscillator */
+                    auto note_msg = msg.AsNoteOn();
+                    osc[0].SetFreq(mtof(note_msg.note));
+
+                    // 1V/oct CV on Patch DAC CH1 (0-5V => 0-4095 counts)
+                    float cv_dac = (static_cast<float>(note_msg.note) / 12.0f) * 819.2f;
+                    if(cv_dac < 0.0f)
+                        cv_dac = 0.0f;
+                    else if(cv_dac > 4095.0f)
+                        cv_dac = 4095.0f;
+                    patch.seed.dac.WriteValue(DacHandle::Channel::ONE,
+                                              static_cast<uint16_t>(cv_dac));
+                }
+                break;
+                    // Since we only care about note-on messages in this example
+                    // we'll ignore all other message types
+                default: break;
+            }
+        }
     }
 }
 
@@ -86,7 +128,7 @@ void UpdateOled()
     patch.display.Fill(false);
 
     patch.display.SetCursor(0, 0);
-    std::string str  = "PolyOsc";
+    std::string str  = "PolyOsc!";
     char*       cstr = &str[0];
     patch.display.WriteString(cstr, Font_7x10, true);
 
@@ -129,7 +171,10 @@ void UpdateControls()
     //Adjust oscillators based on inputs
     for(int i = 0; i < 3; i++)
     {
-        osc[i].SetFreq(ctrl[i]);
+        if(i != 0)
+        {
+            osc[i].SetFreq(ctrl[i]);
+        }
         osc[i].SetWaveform((uint8_t)waveform);
     }
 }
