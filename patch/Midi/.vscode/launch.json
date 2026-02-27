@@ -2,8 +2,7 @@
   "configurations": [
     {
       "configFiles": [
-        // "interface/stlink.cfg",
-        "/Volumes/Ext SSD 1/Daisy/stlink_patch.cfg",
+        "interface/stlink.cfg",
         "target/stm32h7x.cfg"
       ],
       "cwd": "${workspaceFolder}",

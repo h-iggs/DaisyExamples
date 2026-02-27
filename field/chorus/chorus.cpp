@@ -75,7 +75,7 @@ int main(void)
         hw.display.Fill(false);
 
         char cstr[15];
-        sprintf(cstr, "++Effect++: %s", effectOn ? "On" : "Off");
+        sprintf(cstr, "Effect: %s", effectOn ? "On" : "Off");
         hw.display.SetCursor(0, 0);
         hw.display.WriteString(cstr, Font_7x10, true);
 

@@ -3,6 +3,7 @@ TARGET = FieldMidi
 
 # Sources
 CPP_SOURCES = Midi.cpp
+C_SOURCES = ym3438.c
 
 # Library Locations
 LIBDAISY_DIR = ../../libDaisy

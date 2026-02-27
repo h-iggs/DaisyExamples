@@ -78,21 +78,15 @@ int main(void)
     filt.Init(samplerate);
 
     //display
-    std::string str  = "!!Patch Midi!!";
+    std::string str  = "Midi";
     char*       cstr = &str[0];
     hw.display.WriteString(cstr, Font_7x10, true);
     hw.display.Update();
 
     // Start stuff.
-    // hw.midi.StartReceive();
+    hw.midi.StartReceive();
     hw.StartAdc();
     hw.StartAudio(AudioCallback);
-
-    MidiUsbHandler midi;
-    MidiUsbHandler::Config midi_cfg;
-    midi_cfg.transport_config.periph = MidiUsbTransport::Config::INTERNAL;
-	midi.Init(midi_cfg);
-
     for(;;)
     {
         hw.midi.Listen();
