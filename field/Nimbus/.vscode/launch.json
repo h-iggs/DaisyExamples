@@ -2,7 +2,8 @@
   "configurations": [
     {
       "configFiles": [
-        "interface/stlink.cfg",
+        // "interface/stlink.cfg",
+        "/Volumes/Ext SSD 1/Daisy/stlink_field.cfg",
         "target/stm32h7x.cfg"
       ],
       "cwd": "${workspaceFolder}",
@@ -24,7 +25,7 @@
         "monitor reset"
       ],
       "request": "launch",
-      "runToMain": true,
+      // "runToEntryPoint": true,  runToMain
       "servertype": "openocd",
       "showDevDebugOutput": true,
       "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",

@@ -2,7 +2,8 @@
   "configurations": [
     {
       "configFiles": [
-        "interface/stlink.cfg",
+        // "interface/stlink.cfg",
+        "/Volumes/Ext SSD 1/Daisy/stlink_field.cfg",
         "target/stm32h7x.cfg"
       ],
       "cwd": "${workspaceFolder}",
@@ -10,7 +11,7 @@
         "-d",
         "${workspaceRoot}"
       ],
-      "executable": "${workspaceRoot}/build/Midi.elf",
+      "executable": "${workspaceRoot}/build/FieldMidi.elf",
       "interface": "swd",
       "name": "Cortex Debug",
       "openOCDLaunchCommands": [

@@ -99,7 +99,7 @@ void UpdateOled()
     patch.display.Fill(false);
 
     patch.display.SetCursor(0, 0);
-    std::string str  = "Dual LFO";
+    std::string str  = "Patch Dual LFO";
     char*       cstr = &str[0];
     patch.display.WriteString(cstr, Font_7x10, true);
 

@@ -206,28 +206,34 @@ void HandleMidiMessage(MidiEvent m)
 int main(void)
 {
     // Init
+    MidiUsbHandler midi;
     float samplerate;
     hw.Init();
     samplerate = hw.AudioSampleRate();
     voice_handler.Init(samplerate);
 
     //display
-    const char str[] = "Midi";
+    const char str[] = "Field Midi";
     char *     cstr  = (char *)str;
     hw.display.WriteString(cstr, Font_7x10, true);
     hw.display.Update();
 
     // Start stuff.
-    hw.midi.StartReceive();
+    // hw.midi.StartReceive();
     hw.StartAdc();
     hw.StartAudio(AudioCallback);
+
+    MidiUsbHandler::Config midi_cfg;
+    midi_cfg.transport_config.periph = MidiUsbTransport::Config::INTERNAL;
+	midi.Init(midi_cfg);
+
     for(;;)
     {
-        hw.midi.Listen();
+        midi.Listen();
         // Handle MIDI Events
-        while(hw.midi.HasEvents())
+        while(midi.HasEvents())
         {
-            HandleMidiMessage(hw.midi.PopEvent());
+            HandleMidiMessage(midi.PopEvent());
         }
     }
 }
